@@ -4,10 +4,10 @@
 #include <UniversalTelegramBot.h>
 #include <time.h>
 
-const char* ssid = "Keenetic-143";
-const char* password = "K1sell_SER";
+const char* ssid = "";
+const char* password = "";
 
-#define BOTtoken "8067353162:AAGGiRfoKyGQZA_lOJHUtCNx7GDvJjBR_Fw"
+#define BOTtoken ""
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
