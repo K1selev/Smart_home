@@ -7,6 +7,14 @@
 import UIKit
 import SnapKit
 
+struct SensorData: Decodable {
+    let light: Int         // 0–1023
+    let temperature: Float // °C
+    let humidity: Float    // %
+    let gas: Int           // 0–1023
+    let fire: Int          // 0–1023
+}
+
 class SecurityViewController: UIViewController {
     
     var infoHeader = UIView()
@@ -167,20 +175,68 @@ class SecurityViewController: UIViewController {
         navigationController?.popViewController(animated: true)
     }
 
+//    @objc func loadSensorData() {
+//        startLoading()
+//        
+//        let url = URL(string: "http://192.168.5.47/sensors")!
+//        URLSession.shared.dataTask(with: url) { data, resp, err in
+//            DispatchQueue.main.async {
+//                self.stopLoading()
+//                guard let data = data,
+//                      let sensor = try? JSONDecoder().decode(SensorData.self, from: data) else {
+//                    self.showLoadError()
+//                    return
+//                }
+//                self.lightingValueLabel.text    = "\(sensor.light)"
+//                self.temperatureValueLabel.text = String(format: "%.1f° C", sensor.temperature)
+//                self.humidityValueLabel.text    = String(format: "%.1f %%", sensor.humidity)
+//                self.gasValueLabel.text         = "\(sensor.gas)"
+//                self.fireValueLabel.text        = "\(sensor.fire)"
+//            }
+//        }.resume()
+//    }
+    
     @objc func loadSensorData() {
         startLoading()
-        
-        // Имитация загрузки (например, сетевой запрос)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            self.lightingValueLabel.text = "30 %"
-            self.humidityValueLabel.text = "30 %"
-            self.temperatureValueLabel.text = "30° C"
-            self.gasValueLabel.text = "30"
-            self.fireValueLabel.text = "Нет"
-            
-            self.stopLoading()
-        }
+        fetchSensorDataWithRetry(attempt: 1, maxAttempts: 3)
     }
+
+    private func fetchSensorDataWithRetry(attempt: Int, maxAttempts: Int) {
+        let url = URL(string: "http://192.168.5.47/sensors")!
+        
+        URLSession.shared.dataTask(with: url) { data, resp, err in
+            DispatchQueue.main.async {
+                if let data = data, let sensor = try? JSONDecoder().decode(SensorData.self, from: data) {
+                    self.updateSensorLabels(with: sensor)
+                    self.stopLoading()
+                } else if attempt < maxAttempts {
+                    // Повтор через 1 секунду
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.fetchSensorDataWithRetry(attempt: attempt + 1, maxAttempts: maxAttempts)
+                    }
+                } else {
+                    self.stopLoading()
+                    self.showLoadError()
+                }
+            }
+        }.resume()
+    }
+
+    private func updateSensorLabels(with sensor: SensorData) {
+        lightingValueLabel.text    = "\(sensor.light)"
+        temperatureValueLabel.text = String(format: "%.1f° C", sensor.temperature)
+        humidityValueLabel.text    = String(format: "%.1f %%", sensor.humidity)
+        gasValueLabel.text         = "\(sensor.gas)"
+        fireValueLabel.text        = "\(sensor.fire)"
+    }
+
+    
+    private func showLoadError() {
+        let a = UIAlertController(title: "Ошибка", message: "Не удалось получить данные", preferredStyle: .alert)
+        a.addAction(.init(title: "OK", style: .default))
+        present(a, animated: true)
+    }
+
     
     private func startLoading() {
         refreshButton.setTitle("", for: .normal)

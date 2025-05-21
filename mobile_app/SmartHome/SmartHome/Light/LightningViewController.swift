@@ -204,15 +204,33 @@ class LightningViewController: UIViewController {
     
     @objc private func handleSave() {
         var red: CGFloat = 0
-            var green: CGFloat = 0
-            var blue: CGFloat = 0
-            var alpha: CGFloat = 0
-            selectedColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        selectedColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
 
-        
-        print("Свет: \(isLightOn ? "включен" : "выключен")")
-        print("Цвет: \(selectedColor.accessibilityName)")
-        print(String(format: "Цвет: R: %.0f, G: %.0f, B: %.0f", red * 255, green * 255, blue * 255))
-        print("Яркость: \(brightnessValue)")
+        let rInt = Int(red * 255 * CGFloat(brightnessValue))
+        let gInt = Int(green * 255 * CGFloat(brightnessValue))
+        let bInt = Int(blue * 255 * CGFloat(brightnessValue))
+
+        sendLightCommand(isOn: isLightOn, red: rInt, green: gInt, blue: bInt, brightness: brightnessValue)
+
+        print("Отправлено -> Свет: \(isLightOn), R:\(rInt), G:\(gInt), B:\(bInt), Яркость: \(brightnessValue)")
+    }
+
+    
+    func sendLightCommand(isOn: Bool, red: Int, green: Int, blue: Int, brightness: Float) {
+        let state = isOn ? "1" : "0"
+        let urlString = "http://192.168.5.47/setLight?on=\(state)&r=\(red)&g=\(green)&b=\(blue)&brightness=\(brightness)"
+        guard let url = URL(string: urlString) else { return }
+
+        let task = URLSession.shared.dataTask(with: url) { _, response, error in
+            if let error = error {
+                print("Ошибка запроса: \(error)")
+            } else {
+                print("Ответ: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            }
+        }
+        task.resume()
     }
 }

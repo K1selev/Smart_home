@@ -5,56 +5,6 @@
 //  Created by Сергей Киселев on 13.05.2025.
 //
 
-
-//import UIKit
-//import SnapKit
-//
-//class DoorViewController: UIViewController {
-//    
-//    var infoHeader = UIView()
-//    var mainView = UIView()
-//    
-//    override func viewDidLoad() {
-//        super.viewDidLoad()
-//        configureUI()
-//    }
-//    
-//    func configureUI() {
-//        
-//        infoHeader.backgroundColor = .black//UIColor(named: "black")
-//        
-//        mainView.backgroundColor = .systemGray2
-//        mainView.clipsToBounds = true
-//        mainView.layer.cornerRadius = 22
-//        mainView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-//        
-//        [infoHeader,
-//         mainView].forEach {
-//            view.addSubview($0)
-//        }
-//        makeConstraints()
-//    }
-//    
-//    func makeConstraints() {
-//        
-//        infoHeader.snp.makeConstraints { make in
-//            make.top.equalTo(view.safeAreaLayoutGuide)
-//            make.leading.equalToSuperview()
-//            make.trailing.equalToSuperview()
-//            make.height.equalTo(150)
-//        }
-//        
-//        mainView.snp.makeConstraints { make in
-//            make.top.equalTo(infoHeader.snp.bottom).offset(-30)
-//            make.centerX.equalToSuperview()
-//            make.leading.equalToSuperview()
-//            make.trailing.equalToSuperview()
-//            make.bottom.equalToSuperview()
-//        }
-//    }
-//}
-//
-
 import UIKit
 import SnapKit
 
@@ -74,10 +24,6 @@ class DoorViewController: UIViewController {
     private var stateLabel = UILabel()
     private var currentStateLabel = UILabel()
     
-//    private var sensitivityLabel = UILabel()
-//    private var sensitivityStepper = UIStepper()
-//    private var sensitivityValueLabel = UILabel()
-    
     private var historyLabel = UILabel()
     private var tableView = UITableView()
     
@@ -94,6 +40,9 @@ class DoorViewController: UIViewController {
         }
     }
     
+    private var pollingTimer: Timer?
+    private var lastSensorState: String = "Закрыта"
+    
     private var sensitivity: Int = 5 {
         didSet {
 //            sensitivityValueLabel.text = "\(sensitivity)"
@@ -108,6 +57,7 @@ class DoorViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
+        pollingTimer?.invalidate()
     }
 
     override func viewDidLoad() {
@@ -116,6 +66,7 @@ class DoorViewController: UIViewController {
         loadEvents()
         configureUI()
         configureActions()
+        startPollingSensor()
     }
 
     private func configureUI() {
@@ -146,15 +97,6 @@ class DoorViewController: UIViewController {
         currentStateLabel.text = currentState
         currentStateLabel.font = .systemFont(ofSize: 16)
         
-//        sensitivityLabel.text = "Настройка чувствительности:"
-//        sensitivityLabel.textColor = .darkGray
-//        
-//        sensitivityStepper.minimumValue = 1
-//        sensitivityStepper.maximumValue = 10
-//        sensitivityStepper.stepValue = 1
-//        sensitivityStepper.value = Double(sensitivity)
-//        sensitivityValueLabel.text = "\(sensitivity)"
-        
         historyLabel.text = "История открытий"
         historyLabel.font = .boldSystemFont(ofSize: 16)
         
@@ -178,7 +120,6 @@ class DoorViewController: UIViewController {
 
     private func configureActions() {
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
-//        sensitivityStepper.addTarget(self, action: #selector(sensitivityChanged), for: .valueChanged)
         actionButton.addTarget(self, action: #selector(toggleDoorState), for: .touchUpInside)
     }
 
@@ -191,6 +132,15 @@ class DoorViewController: UIViewController {
     }
 
     @objc private func toggleDoorState() {
+        if (currentState == "Открыта") {
+            sendCommandToESP(endpoint: "close") {
+            }
+        }
+        else if (currentState == "Закрыта") {
+            sendCommandToESP(endpoint: "open") {
+            }
+            
+        }
         currentState = currentState == "Открыта" ? "Закрыта" : "Открыта"
     }
 
@@ -231,21 +181,6 @@ class DoorViewController: UIViewController {
             make.leading.equalTo(stateLabel.snp.trailing).offset(8)
         }
 
-//        sensitivityLabel.snp.makeConstraints { make in
-//            make.top.equalTo(stateLabel.snp.bottom).offset(24)
-//            make.leading.equalToSuperview().offset(16)
-//        }
-//
-//        sensitivityStepper.snp.makeConstraints { make in
-//            make.centerY.equalTo(sensitivityLabel)
-//            make.leading.equalTo(sensitivityLabel.snp.trailing).offset(16)
-//        }
-//
-//        sensitivityValueLabel.snp.makeConstraints { make in
-//            make.centerY.equalTo(sensitivityLabel)
-//            make.leading.equalTo(sensitivityStepper.snp.trailing).offset(12)
-//        }
-
         historyLabel.snp.makeConstraints { make in
             make.top.equalTo(stateLabel.snp.bottom).offset(32)
             make.leading.equalToSuperview().offset(16)
@@ -266,14 +201,6 @@ class DoorViewController: UIViewController {
 
     // MARK: - Persistence
 
-//    private func saveEvent(state: String) {
-//        let newEvent = DoorEvent(state: state, timestamp: Date())
-//        doorEvents.insert(newEvent, at: 0)
-//        if let data = try? JSONEncoder().encode(doorEvents) {
-//            UserDefaults.standard.set(data, forKey: "doorEvents")
-//        }
-//    }
-    
     private func saveEvent(state: String) {
         let newEvent = DoorEvent(state: state, timestamp: Date())
         doorEvents.insert(newEvent, at: 0)
@@ -287,13 +214,6 @@ class DoorViewController: UIViewController {
             UserDefaults.standard.set(data, forKey: "doorEvents")
         }
     }
-
-//    private func loadEvents() {
-//        if let data = UserDefaults.standard.data(forKey: "doorEvents"),
-//           let savedEvents = try? JSONDecoder().decode([DoorEvent].self, from: data) {
-//            doorEvents = savedEvents
-//        }
-//    }
     
     private func loadEvents() {
         if let data = UserDefaults.standard.data(forKey: "doorEvents"),
@@ -301,6 +221,40 @@ class DoorViewController: UIViewController {
             // Загружаем только последние 10 событий
             doorEvents = Array(savedEvents.prefix(10))
         }
+    }
+    
+    private func sendCommandToESP(endpoint: String, completion: @escaping () -> Void) {
+        guard let url = URL(string: "http://192.168.5.47/\(endpoint)") else { return }
+        let task = URLSession.shared.dataTask(with: url) { _, response, error in
+            if let error = error {
+                print("Ошибка запроса: \(error)")
+            } else {
+                print("Ответ: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            }
+        }
+        task.resume()
+    }
+    
+    private func startPollingSensor() {
+        pollingTimer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(pollSensor), userInfo: nil, repeats: true)
+    }
+
+    @objc private func pollSensor() {
+//        guard let url = URL(string: "http://192.168.5.47/doorState") else { return }
+//        URLSession.shared.dataTask(with: url) { data, _, _ in
+//            guard let data = data,
+//                  let responseStr = String(data: data, encoding: .utf8)?
+//                .trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+//            
+//            DispatchQueue.main.async {
+//                if responseStr == "Открыта" && self.lastSensorState != "Открыта" {
+//                    self.currentState = "Открыта"
+//                    self.lastSensorState = "Открыта"
+//                } else if responseStr == "Закрыта" {
+//                    self.lastSensorState = "Закрыта"
+//                }
+//            }
+//        }.resume()
     }
 }
 
