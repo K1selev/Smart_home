@@ -224,7 +224,7 @@ class DoorViewController: UIViewController {
     }
     
     private func sendCommandToESP(endpoint: String, completion: @escaping () -> Void) {
-        guard let url = URL(string: "http://192.168.5.47/\(endpoint)") else { return }
+        guard let url = URL(string: "\(Constants.baseURL)/\(endpoint)") else { return }
         let task = URLSession.shared.dataTask(with: url) { _, response, error in
             if let error = error {
                 print("Ошибка запроса: \(error)")

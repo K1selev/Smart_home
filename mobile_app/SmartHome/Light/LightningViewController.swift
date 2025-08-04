@@ -214,6 +214,7 @@ class LightningViewController: UIViewController {
         let bInt = Int(blue * 255 * CGFloat(brightnessValue))
 
         sendLightCommand(isOn: isLightOn, red: rInt, green: gInt, blue: bInt, brightness: brightnessValue)
+        sendLightCommand(isOn: isLightOn, red: rInt, green: gInt, blue: bInt, brightness: brightnessValue)
 
         print("Отправлено -> Свет: \(isLightOn), R:\(rInt), G:\(gInt), B:\(bInt), Яркость: \(brightnessValue)")
     }
@@ -221,7 +222,7 @@ class LightningViewController: UIViewController {
     
     func sendLightCommand(isOn: Bool, red: Int, green: Int, blue: Int, brightness: Float) {
         let state = isOn ? "1" : "0"
-        let urlString = "http://192.168.5.47/setLight?on=\(state)&r=\(red)&g=\(green)&b=\(blue)&brightness=\(brightness)"
+        let urlString = "\(Constants.baseURL)/setLight?on=\(state)&r=\(red)&g=\(green)&b=\(blue)&brightness=\(brightness)"
         guard let url = URL(string: urlString) else { return }
 
         let task = URLSession.shared.dataTask(with: url) { _, response, error in
